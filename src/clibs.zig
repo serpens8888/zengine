@@ -1,10 +1,5 @@
-
-
 pub usingnamespace @cImport({
-    @cInclude"
-
-
-
-
-
+    @cInclude("Vulkan/vulkan.h");
+    @cInclude("vk_mem_alloc.h");
+    @cInclude("miniaudio.h");
 });

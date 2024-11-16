@@ -8,7 +8,14 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibC();
-    exe.linkSystemLibrary("SDL2");
+    exe.linkSystemLibrary("vulkan");
+
+    exe.linkLibCpp();
+    exe.addCSourceFile(.{ .file = b.path("src/vma_impl.cpp"), .flags = &.{""} });
+    exe.addIncludePath(b.path("vk_mem_alloc.h"));
+
+    exe.addCSourceFile(.{ .file = b.path("src/miniaudio_impl.c"), .flags = &.{"-I./c_include"} });
+    exe.addIncludePath(b.path("c_include/miniaudio.h"));
 
     b.installArtifact(exe);
 
