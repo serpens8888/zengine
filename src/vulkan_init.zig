@@ -63,11 +63,19 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_inf
     log.info(" extension count : {}\n", .{extension_count});
 
     const extensions: []c.VkExtensionProperties = try allocator.alloc(c.VkExtensionProperties, extension_count);
-
     defer allocator.free(extensions);
 
     if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extensions.ptr) != c.VK_SUCCESS) {
         log.err("failed to get  vulkan extension names", .{});
+    }
+
+    const extension_names: [][]u8 = try allocator.alloc([]u8, extension_count);
+    defer allocator.free(extension_names);
+
+    var i: usize = 0;
+    for (extensions) |extension| {
+        extension_names[i] = &extension.extensionName;
+        i += 1;
     }
 
     try printExtensions(extensions, extension_count);
@@ -76,7 +84,7 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_inf
     instance_ci.pNext = null;
     instance_ci.pApplicationInfo = &app_ci;
     instance_ci.enabledExtensionCount = extension_count;
-    //    instance_ci.ppEnabledExtensionNames =
+    //    instance_ci.ppEnabledExtensionNames = extension_names;
     //    instance_ci.enabledLayerCount =
     //    instance_ci.ppEnabledLayerNames =
 
