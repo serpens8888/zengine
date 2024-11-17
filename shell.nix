@@ -10,7 +10,6 @@ in
 
 	    #pkgs.SDL3 #wait for it to be packaged
 
-	    pkgs.miniaudio
 
 	    pkgs.pkg-config
 

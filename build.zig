@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath(b.path("vk_mem_alloc.h"));
 
     exe.addCSourceFile(.{ .file = b.path("src/miniaudio_impl.c"), .flags = &.{"-I./c_include"} });
-    exe.addIncludePath(b.path("c_include/miniaudio.h"));
+    exe.addIncludePath(b.path("./c_include"));
 
     b.installArtifact(exe);
 
