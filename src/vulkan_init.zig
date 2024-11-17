@@ -21,6 +21,12 @@ pub const instance = struct {
     handle: c.VkInstance,
 };
 
+fn printExtensions(extensions: []c.VkExtensionProperties, extension_count: u32) !void {
+    for (extensions[0..extension_count]) |extension| {
+        std.debug.print("extension: {s}, spec version: {d}\n", .{ extension.extensionName, extension.specVersion });
+    }
+}
+
 pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_info) !instance {
     var vulkan_version: u32 = 0;
 
@@ -56,13 +62,15 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_inf
 
     log.info(" extension count : {}\n", .{extension_count});
 
-    var extensions = try allocator.alloc(c.VkExtensionProperties, extension_count);
+    const extensions: []c.VkExtensionProperties = try allocator.alloc(c.VkExtensionProperties, extension_count);
 
-    if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extensions) != c.VK_SUCCESS){
+    defer allocator.free(extensions);
+
+    if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extensions.ptr) != c.VK_SUCCESS) {
         log.err("failed to get  vulkan extension names", .{});
     }
 
-
+    try printExtensions(extensions, extension_count);
 
     instance_ci.sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_ci.pNext = null;
