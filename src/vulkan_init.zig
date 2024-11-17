@@ -21,9 +21,12 @@ pub const instance = struct {
     handle: c.VkInstance,
 };
 
-pub fn create_vulkan_instance(app_info: vk_app_info) !instance {
-    var vulkan_version: u32 = undefined;
-    _ = c.vkEnumerateInstanceVersion(&vulkan_version);
+pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_info) !instance {
+    var vulkan_version: u32 = 0;
+
+    if (c.vkEnumerateInstanceVersion(&vulkan_version) != c.VK_SUCCESS) {
+        log.err("Failed to get vulkan version", .{});
+    }
 
     const major: u32 = c.VK_VERSION_MAJOR(vulkan_version);
     const minor: u32 = c.VK_VERSION_MINOR(vulkan_version);
@@ -45,9 +48,29 @@ pub fn create_vulkan_instance(app_info: vk_app_info) !instance {
 
     var instance_ci: c.VkInstanceCreateInfo = std.mem.zeroInit(c.VkInstanceCreateInfo, .{0});
 
+    var extension_count: u32 = 0;
+
+    if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, null) != c.VK_SUCCESS) {
+        log.err("failed to get vulkan extension count", .{});
+    }
+
+    log.info(" extension count : {}\n", .{extension_count});
+
+    var extensions = try allocator.alloc(c.VkExtensionProperties, extension_count);
+
+    if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extensions) != c.VK_SUCCESS){
+        log.err("failed to get  vulkan extension names", .{});
+    }
+
+
+
     instance_ci.sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_ci.pNext = null;
     instance_ci.pApplicationInfo = &app_ci;
+    instance_ci.enabledExtensionCount = extension_count;
+    //    instance_ci.ppEnabledExtensionNames =
+    //    instance_ci.enabledLayerCount =
+    //    instance_ci.ppEnabledLayerNames =
 
     return a;
 }
