@@ -59,8 +59,7 @@ pub fn build(b: *std.Build) !void {
     exe.addCSourceFile(.{ .file = b.path("src/miniaudio_impl.c"), .flags = &.{"-I./dependencies"} });
     exe.addIncludePath(b.path("./dependencies"));
 
-    //try copy_dir("./dependencies/VK/!dynamic", "./zig-out/bin");
-    //try copy_dir("./dependencies/SDL/!dynamic", "./zig-out/bin");
+    try copy_dir("./dependencies/SDL/!dynamic", "./zig-out/bin");
 
     b.installArtifact(exe);
 
