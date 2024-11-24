@@ -10,24 +10,20 @@ const version = struct {
     patch: u32,
 };
 
-pub const vk_app_info = struct {
+pub const vk_info = struct {
     app_name: [:0]const u8 = "zengine",
     app_version: version,
     engine_name: [:0]const u8 = "zengine",
     engine_version: version,
+    debug: bool,
+    required_extensions: []const [*c]const u8,
 };
 
 pub const instance = struct {
     handle: c.VkInstance,
 };
 
-fn printExtensions(extensions: []c.VkExtensionProperties, extension_count: u32) !void {
-    for (extensions[0..extension_count]) |extension| {
-        std.debug.print("extension: {s}, spec version: {d}\n", .{ extension.extensionName, extension.specVersion });
-    }
-}
-
-pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_info) !instance {
+pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_info) !instance {
     var vulkan_version: u32 = 0;
 
     if (c.vkEnumerateInstanceVersion(&vulkan_version) != c.VK_SUCCESS) {
@@ -38,7 +34,7 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_inf
     const minor: u32 = c.VK_VERSION_MINOR(vulkan_version);
     const patch: u32 = c.VK_VERSION_PATCH(vulkan_version);
 
-    log.info(" Vulkan version: {}.{}.{}\n", .{ major, minor, patch });
+    log.info(" Vulkan version: {}.{}.{}", .{ major, minor, patch });
 
     const a: instance = std.mem.zeroInit(instance, .{null});
 
@@ -57,28 +53,17 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_app_inf
     var extension_count: u32 = 0;
 
     if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, null) != c.VK_SUCCESS) {
-        log.err("failed to get vulkan extension count", .{});
+        log.err("failed to get extension count", .{});
     }
 
-    log.info(" extension count : {}\n", .{extension_count});
+    log.info(" Vulkan extension count : {}", .{extension_count});
 
     const extensions: []c.VkExtensionProperties = try allocator.alloc(c.VkExtensionProperties, extension_count);
     defer allocator.free(extensions);
 
     if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extensions.ptr) != c.VK_SUCCESS) {
-        log.err("failed to get  vulkan extension names", .{});
+        log.err("failed to get extension names", .{});
     }
-
-    const extension_names: [][]u8 = try allocator.alloc([]u8, extension_count);
-    defer allocator.free(extension_names);
-
-    var i: usize = 0;
-    for (extensions) |extension| {
-        extension_names[i] = &extension.extensionName;
-        i += 1;
-    }
-
-    try printExtensions(extensions, extension_count);
 
     instance_ci.sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_ci.pNext = null;
