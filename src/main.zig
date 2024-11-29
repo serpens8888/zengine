@@ -23,6 +23,7 @@ pub fn main() !void {
         .app_version = .{ .major = 0, .minor = 0, .patch = 0 },
         .engine_name = "zengine",
         .engine_version = .{ .major = 0, .minor = 0, .patch = 0 },
+        .api_version = .{ .major = 1, .minor = 3, .patch = 0 },
         .debug = true,
         .required_extensions = sdl_extensions_slice,
     });
