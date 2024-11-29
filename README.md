@@ -9,7 +9,9 @@ miniaudio,
 
 AMD GPUOpen Vulkan Memory Allocator,
 
-Vulkan
+Vulkan,
+
+SDL3,
 
 }
 
