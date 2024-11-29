@@ -101,8 +101,8 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_info) !
         }
     }
 
-    const layer_count: u32 = 0;
-    if (c.vkEnumerateInstanceLayerProperties(null, &layer_count, null) != c.VK_SUCCESS) {
+    var layer_count: u32 = 0;
+    if (c.vkEnumerateInstanceLayerProperties(&layer_count, null) != c.VK_SUCCESS) {
         log.err("failed to get layer count", .{});
     }
 

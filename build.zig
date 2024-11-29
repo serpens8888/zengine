@@ -15,10 +15,10 @@ pub fn build(b: *std.Build) !void {
 
     const vulkan = if (target.result.os.tag == .windows) "vulkan-1" else "vulkan";
 
-    exe.addLibraryPath(.{ .cwd_relative = "dependencies/VK/!static" });
+    exe.addLibraryPath(.{ .cwd_relative = "dependencies/VK/lib" });
     exe.linkSystemLibrary(vulkan);
 
-    exe.addLibraryPath(.{ .cwd_relative = "dependencies/SDL/!static" });
+    exe.addLibraryPath(.{ .cwd_relative = "dependencies/SDL/lib" });
     exe.linkSystemLibrary("SDL3");
     exe.addIncludePath(b.path("./dependencies/SDL"));
 
@@ -32,9 +32,9 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(exe);
 
     if (target.result.os.tag == .windows) {
-        b.installBinFile("./dependencies/SDL/!dynamic/SDL3.dll", "SDL3.dll");
+        b.installBinFile("./dependencies/SDL/lib/SDL3.dll", "SDL3.dll");
     } else {
-        b.installBinFile("./dependencies/SDL/!dynamic/libSDL3.so", "libSDL3.so.0");
+        b.installBinFile("./dependencies/SDL/lib/libSDL3.so", "libSDL3.so.0");
         exe.root_module.addRPathSpecial("$ORIGIN");
     }
 
