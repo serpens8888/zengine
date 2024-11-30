@@ -30,7 +30,7 @@ pub fn main() !void {
         .debug = true,
         .required_extensions = sdl_extensions_slice,
         .alloc_callback = null,
-        .debug_callback = null,
+        .debug_callback = vk_init.default_debug_callback,
     });
 
     var event: c.SDL_Event = undefined;
@@ -48,7 +48,6 @@ pub fn main() !void {
 
         // simulate
     }
-    // USING DEFER WILL SEGFAULT THEY MUST BE IN THIS ORDER
     vk_init.destroy_debug_utils_messenger(instance, null);
     vk_init.destroy_instance(instance, null);
 }

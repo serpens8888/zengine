@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const c = @import("clibs.zig");
-const check = @import("check_vk.zig");
 
 const log = std.log.scoped(.vulkan_init);
 
@@ -101,6 +100,12 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_instanc
         }
     }
 
+    const debug_extension: [*c]const u8 = "VK_EXT_debug_utils";
+    if (find_extension(debug_extension, extension_props)) {
+        log.info("found debug extension", .{});
+        try extensions.append(arena, debug_extension);
+    }
+
     var layer_count: u32 = 0;
     var layers = std.ArrayListUnmanaged([*c]const u8){};
     if (enable_validation == true) {
@@ -109,9 +114,7 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_instanc
         }
 
         const layer_props: []c.VkLayerProperties = try arena.alloc(c.VkLayerProperties, layer_count);
-        if (c.vkEnumerateInstanceLayerProperties(&extension_count, layer_props.ptr) != c.VK_SUCCESS) {
-            log.err("failed to get layer names", .{});
-        }
+        try check_vk(c.vkEnumerateInstanceLayerProperties(&layer_count, layer_props.ptr));
 
         const validation_layer: [*c]const u8 = "VK_LAYER_KHRONOS_validation";
 
@@ -170,6 +173,7 @@ fn create_debug_callback(instance: c.VkInstance, instance_info: vk_instance_info
         if (create_fn(instance, &create_info, instance_info.alloc_callback, &debug_messenger) != c.VK_SUCCESS) {
             log.err("failed to create debugs utils messenger", .{});
         }
+        log.info("created debug utils messenger", .{});
         return debug_messenger;
     }
     log.err("failed to create debug messenger", .{});
@@ -177,11 +181,12 @@ fn create_debug_callback(instance: c.VkInstance, instance_info: vk_instance_info
 }
 
 pub fn destroy_debug_utils_messenger(instance: Instance, alloc_cb: ?*c.VkAllocationCallbacks) void {
-    if (instance.debug_messenger != null) {
+    if (instance.debug_messenger == null) {
         return;
     }
 
     const destroy_fn_opt = get_vulkan_instance_func(c.PFN_vkDestroyDebugUtilsMessengerEXT, instance.handle, "vkDestroyDebugUtilsMessengerEXT");
+    log.info("got debug utils messenger destroy functoion", .{});
 
     if (destroy_fn_opt) |destroy_fn| {
         destroy_fn(instance.handle, instance.debug_messenger, alloc_cb);
@@ -192,4 +197,84 @@ pub fn destroy_debug_utils_messenger(instance: Instance, alloc_cb: ?*c.VkAllocat
 pub fn destroy_instance(instance: Instance, alloc_cb: ?*c.VkAllocationCallbacks) void {
     c.vkDestroyInstance(instance.handle, alloc_cb);
     log.info("destroyed vulkan instance", .{});
+}
+
+pub fn default_debug_callback(severity: c.VkDebugUtilsMessageSeverityFlagBitsEXT, msg_type: c.VkDebugUtilsMessageTypeFlagsEXT, callback_data: ?*const c.VkDebugUtilsMessengerCallbackDataEXT, user_data: ?*anyopaque) callconv(.C) c.VkBool32 {
+    _ = user_data;
+    const severity_str = switch (severity) {
+        c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT => "verbose",
+        c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT => "info",
+        c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT => "warning",
+        c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT => "error",
+        else => "unknown",
+    };
+
+    const type_str = switch (msg_type) {
+        c.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT => "general",
+        c.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT => "validation",
+        c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT => "performance",
+        c.VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT => "device address",
+        else => "unknown",
+    };
+
+    const message: [*c]const u8 = if (callback_data) |cb_data| cb_data.pMessage else "NO MESSAGE!";
+    log.err("[{s}][{s}]. Message:\n  {s}", .{ severity_str, type_str, message });
+
+    if (severity >= c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        @panic("Unrecoverable vulkan error.");
+    }
+
+    return c.VK_FALSE;
+}
+
+pub fn check_vk(result: c.VkResult) !void {
+    return switch (result) {
+        c.VK_SUCCESS => {},
+        c.VK_NOT_READY => error.vk_not_ready,
+        c.VK_TIMEOUT => error.vk_timeout,
+        c.VK_EVENT_SET => error.vk_event_set,
+        c.VK_EVENT_RESET => error.vk_event_reset,
+        c.VK_INCOMPLETE => error.vk_incomplete,
+        c.VK_ERROR_OUT_OF_HOST_MEMORY => error.vk_error_out_of_host_memory,
+        c.VK_ERROR_OUT_OF_DEVICE_MEMORY => error.vk_error_out_of_device_memory,
+        c.VK_ERROR_INITIALIZATION_FAILED => error.vk_error_initialization_failed,
+        c.VK_ERROR_DEVICE_LOST => error.vk_error_device_lost,
+        c.VK_ERROR_MEMORY_MAP_FAILED => error.vk_error_memory_map_failed,
+        c.VK_ERROR_LAYER_NOT_PRESENT => error.vk_error_layer_not_present,
+        c.VK_ERROR_EXTENSION_NOT_PRESENT => error.vk_error_extension_not_present,
+        c.VK_ERROR_FEATURE_NOT_PRESENT => error.vk_error_feature_not_present,
+        c.VK_ERROR_INCOMPATIBLE_DRIVER => error.vk_error_incompatible_driver,
+        c.VK_ERROR_TOO_MANY_OBJECTS => error.vk_error_too_many_objects,
+        c.VK_ERROR_FORMAT_NOT_SUPPORTED => error.vk_error_format_not_supported,
+        c.VK_ERROR_FRAGMENTED_POOL => error.vk_error_fragmented_pool,
+        c.VK_ERROR_UNKNOWN => error.vk_error_unknown,
+        c.VK_ERROR_OUT_OF_POOL_MEMORY => error.vk_error_out_of_pool_memory,
+        c.VK_ERROR_INVALID_EXTERNAL_HANDLE => error.vk_error_invalid_external_handle,
+        c.VK_ERROR_FRAGMENTATION => error.vk_error_fragmentation,
+        c.VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS => error.vk_error_invalid_opaque_capture_address,
+        c.VK_PIPELINE_COMPILE_REQUIRED => error.vk_pipeline_compile_required,
+        c.VK_ERROR_SURFACE_LOST_KHR => error.vk_error_surface_lost_khr,
+        c.VK_ERROR_NATIVE_WINDOW_IN_USE_KHR => error.vk_error_native_window_in_use_khr,
+        c.VK_SUBOPTIMAL_KHR => error.vk_suboptimal_khr,
+        c.VK_ERROR_OUT_OF_DATE_KHR => error.vk_error_out_of_date_khr,
+        c.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR => error.vk_error_incompatible_display_khr,
+        c.VK_ERROR_VALIDATION_FAILED_EXT => error.vk_error_validation_failed_ext,
+        c.VK_ERROR_INVALID_SHADER_NV => error.vk_error_invalid_shader_nv,
+        c.VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR => error.vk_error_image_usage_not_supported_khr,
+        c.VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR => error.vk_error_video_picture_layout_not_supported_khr,
+        c.VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR => error.vk_error_video_profile_operation_not_supported_khr,
+        c.VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR => error.vk_error_video_profile_format_not_supported_khr,
+        c.VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR => error.vk_error_video_profile_codec_not_supported_khr,
+        c.VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR => error.vk_error_video_std_version_not_supported_khr,
+        c.VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT => error.vk_error_invalid_drm_format_modifier_plane_layout_ext,
+        c.VK_ERROR_NOT_PERMITTED_KHR => error.vk_error_not_permitted_khr,
+        c.VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT => error.vk_error_full_screen_exclusive_mode_lost_ext,
+        c.VK_THREAD_IDLE_KHR => error.vk_thread_idle_khr,
+        c.VK_THREAD_DONE_KHR => error.vk_thread_done_khr,
+        c.VK_OPERATION_DEFERRED_KHR => error.vk_operation_deferred_khr,
+        c.VK_OPERATION_NOT_DEFERRED_KHR => error.vk_operation_not_deferred_khr,
+        c.VK_ERROR_COMPRESSION_EXHAUSTED_EXT => error.vk_error_compression_exhausted_ext,
+        c.VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT => error.vk_error_incompatible_shader_binary_ext,
+        else => error.vk_errror_unknown,
+    };
 }
