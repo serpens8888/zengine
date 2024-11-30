@@ -2,6 +2,8 @@ const std = @import("std");
 
 const c = @import("clibs.zig");
 
+const check_vk = @import("check_vk.zig").check_vk;
+
 const log = std.log.scoped(.vulkan_init);
 
 const version = struct {
@@ -50,9 +52,7 @@ fn find_layer(layer_name: [*c]const u8, layer_props: []c.VkLayerProperties) bool
 pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_instance_info) !Instance {
     var vulkan_version: u32 = c.VK_MAKE_VERSION(app_info.api_version.major, app_info.api_version.minor, app_info.api_version.minor);
 
-    if (c.vkEnumerateInstanceVersion(&vulkan_version) != c.VK_SUCCESS) {
-        log.err("Vulkan version {}.{}.{} not supported.", .{ app_info.api_version.major, app_info.api_version.minor, app_info.api_version.minor });
-    }
+    try check_vk(c.vkEnumerateInstanceVersion(&vulkan_version));
 
     const major: u32 = c.VK_VERSION_MAJOR(vulkan_version);
     const minor: u32 = c.VK_VERSION_MINOR(vulkan_version);
@@ -80,15 +80,11 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_instanc
 
     var extension_count: u32 = 0;
 
-    if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, null) != c.VK_SUCCESS) {
-        log.err("failed to get extension count", .{});
-    }
+    try check_vk(c.vkEnumerateInstanceExtensionProperties(null, &extension_count, null));
 
     const extension_props: []c.VkExtensionProperties = try arena.alloc(c.VkExtensionProperties, extension_count);
 
-    if (c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extension_props.ptr) != c.VK_SUCCESS) {
-        log.err("failed to get extension names", .{});
-    }
+    try check_vk(c.vkEnumerateInstanceExtensionProperties(null, &extension_count, extension_props.ptr));
 
     var extensions = std.ArrayListUnmanaged([*c]const u8){};
 
@@ -109,9 +105,7 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_instanc
     var layer_count: u32 = 0;
     var layers = std.ArrayListUnmanaged([*c]const u8){};
     if (enable_validation == true) {
-        if (c.vkEnumerateInstanceLayerProperties(&layer_count, null) != c.VK_SUCCESS) {
-            log.err("failed to get layer count", .{});
-        }
+        try check_vk(c.vkEnumerateInstanceLayerProperties(&layer_count, null));
 
         const layer_props: []c.VkLayerProperties = try arena.alloc(c.VkLayerProperties, layer_count);
         try check_vk(c.vkEnumerateInstanceLayerProperties(&layer_count, layer_props.ptr));
@@ -132,9 +126,7 @@ pub fn create_vulkan_instance(allocator: std.mem.Allocator, app_info: vk_instanc
     instance_ci.ppEnabledLayerNames = layers.items.ptr;
 
     var instance_handle: c.VkInstance = undefined;
-    if (c.vkCreateInstance(&instance_ci, app_info.alloc_callback, &instance_handle) != c.VK_SUCCESS) {
-        log.err("failed to create vulkan instance", .{});
-    }
+    try check_vk(c.vkCreateInstance(&instance_ci, app_info.alloc_callback, &instance_handle));
     log.info("created vulkan instance", .{});
 
     const debug_messenger = if (enable_validation)
@@ -170,9 +162,7 @@ fn create_debug_callback(instance: c.VkInstance, instance_info: vk_instance_info
             .pNext = null,
         };
         var debug_messenger: c.VkDebugUtilsMessengerEXT = undefined;
-        if (create_fn(instance, &create_info, instance_info.alloc_callback, &debug_messenger) != c.VK_SUCCESS) {
-            log.err("failed to create debugs utils messenger", .{});
-        }
+        try check_vk(create_fn(instance, &create_info, instance_info.alloc_callback, &debug_messenger));
         log.info("created debug utils messenger", .{});
         return debug_messenger;
     }
@@ -225,56 +215,4 @@ pub fn default_debug_callback(severity: c.VkDebugUtilsMessageSeverityFlagBitsEXT
     }
 
     return c.VK_FALSE;
-}
-
-pub fn check_vk(result: c.VkResult) !void {
-    return switch (result) {
-        c.VK_SUCCESS => {},
-        c.VK_NOT_READY => error.vk_not_ready,
-        c.VK_TIMEOUT => error.vk_timeout,
-        c.VK_EVENT_SET => error.vk_event_set,
-        c.VK_EVENT_RESET => error.vk_event_reset,
-        c.VK_INCOMPLETE => error.vk_incomplete,
-        c.VK_ERROR_OUT_OF_HOST_MEMORY => error.vk_error_out_of_host_memory,
-        c.VK_ERROR_OUT_OF_DEVICE_MEMORY => error.vk_error_out_of_device_memory,
-        c.VK_ERROR_INITIALIZATION_FAILED => error.vk_error_initialization_failed,
-        c.VK_ERROR_DEVICE_LOST => error.vk_error_device_lost,
-        c.VK_ERROR_MEMORY_MAP_FAILED => error.vk_error_memory_map_failed,
-        c.VK_ERROR_LAYER_NOT_PRESENT => error.vk_error_layer_not_present,
-        c.VK_ERROR_EXTENSION_NOT_PRESENT => error.vk_error_extension_not_present,
-        c.VK_ERROR_FEATURE_NOT_PRESENT => error.vk_error_feature_not_present,
-        c.VK_ERROR_INCOMPATIBLE_DRIVER => error.vk_error_incompatible_driver,
-        c.VK_ERROR_TOO_MANY_OBJECTS => error.vk_error_too_many_objects,
-        c.VK_ERROR_FORMAT_NOT_SUPPORTED => error.vk_error_format_not_supported,
-        c.VK_ERROR_FRAGMENTED_POOL => error.vk_error_fragmented_pool,
-        c.VK_ERROR_UNKNOWN => error.vk_error_unknown,
-        c.VK_ERROR_OUT_OF_POOL_MEMORY => error.vk_error_out_of_pool_memory,
-        c.VK_ERROR_INVALID_EXTERNAL_HANDLE => error.vk_error_invalid_external_handle,
-        c.VK_ERROR_FRAGMENTATION => error.vk_error_fragmentation,
-        c.VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS => error.vk_error_invalid_opaque_capture_address,
-        c.VK_PIPELINE_COMPILE_REQUIRED => error.vk_pipeline_compile_required,
-        c.VK_ERROR_SURFACE_LOST_KHR => error.vk_error_surface_lost_khr,
-        c.VK_ERROR_NATIVE_WINDOW_IN_USE_KHR => error.vk_error_native_window_in_use_khr,
-        c.VK_SUBOPTIMAL_KHR => error.vk_suboptimal_khr,
-        c.VK_ERROR_OUT_OF_DATE_KHR => error.vk_error_out_of_date_khr,
-        c.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR => error.vk_error_incompatible_display_khr,
-        c.VK_ERROR_VALIDATION_FAILED_EXT => error.vk_error_validation_failed_ext,
-        c.VK_ERROR_INVALID_SHADER_NV => error.vk_error_invalid_shader_nv,
-        c.VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR => error.vk_error_image_usage_not_supported_khr,
-        c.VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR => error.vk_error_video_picture_layout_not_supported_khr,
-        c.VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR => error.vk_error_video_profile_operation_not_supported_khr,
-        c.VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR => error.vk_error_video_profile_format_not_supported_khr,
-        c.VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR => error.vk_error_video_profile_codec_not_supported_khr,
-        c.VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR => error.vk_error_video_std_version_not_supported_khr,
-        c.VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT => error.vk_error_invalid_drm_format_modifier_plane_layout_ext,
-        c.VK_ERROR_NOT_PERMITTED_KHR => error.vk_error_not_permitted_khr,
-        c.VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT => error.vk_error_full_screen_exclusive_mode_lost_ext,
-        c.VK_THREAD_IDLE_KHR => error.vk_thread_idle_khr,
-        c.VK_THREAD_DONE_KHR => error.vk_thread_done_khr,
-        c.VK_OPERATION_DEFERRED_KHR => error.vk_operation_deferred_khr,
-        c.VK_OPERATION_NOT_DEFERRED_KHR => error.vk_operation_not_deferred_khr,
-        c.VK_ERROR_COMPRESSION_EXHAUSTED_EXT => error.vk_error_compression_exhausted_ext,
-        c.VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT => error.vk_error_incompatible_shader_binary_ext,
-        else => error.vk_errror_unknown,
-    };
 }
