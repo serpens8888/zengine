@@ -12,10 +12,8 @@ pub fn main() !void {
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != true) {
         log.err("SDL init failed", .{});
     }
-    defer c.SDL_Quit();
 
     const window = c.SDL_CreateWindow("zengine window", 600, 600, c.SDL_WINDOW_VULKAN);
-    defer c.SDL_DestroyWindow(window);
 
     var sdl_required_extension_count: u32 = undefined;
     const sdl_extensions = c.SDL_Vulkan_GetInstanceExtensions(&sdl_required_extension_count);
@@ -42,6 +40,12 @@ pub fn main() !void {
                     running = false;
                     break;
                 },
+                c.SDL_EVENT_KEY_DOWN => {
+                    if (event.key.key == c.SDLK_ESCAPE) {
+                        running = false;
+                        break;
+                    }
+                },
                 else => {},
             }
         }
@@ -50,4 +54,8 @@ pub fn main() !void {
     }
     vk_init.destroy_debug_utils_messenger(instance, null);
     vk_init.destroy_instance(instance, null);
+    c.SDL_DestroyWindow(window);
+    log.info("destroyed window", .{});
+    c.SDL_Quit();
+    log.info("quit sdl", .{});
 }
