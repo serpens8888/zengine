@@ -20,13 +20,13 @@ pub fn build(b: *std.Build) !void {
 
     exe.addLibraryPath(.{ .cwd_relative = "dependencies/SDL/lib" });
     exe.linkSystemLibrary("SDL3");
-    exe.addIncludePath(b.path("./dependencies/SDL"));
+    exe.addIncludePath(b.path("./dependencies/SDL/"));
 
     exe.linkLibCpp();
     exe.addCSourceFile(.{ .file = b.path("src/vma_impl.cpp"), .flags = &.{"-I./dependencies/VK"} });
     exe.addIncludePath(b.path("./dependencies/VK"));
 
-    exe.addCSourceFile(.{ .file = b.path("src/miniaudio_impl.c"), .flags = &.{"-I./dependencies"} });
+    exe.addCSourceFile(.{ .file = b.path("src/audio/miniaudio_impl.c"), .flags = &.{"-I./dependencies"} });
     exe.addIncludePath(b.path("./dependencies"));
 
     b.installArtifact(exe);
